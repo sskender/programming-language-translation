@@ -1,3 +1,0 @@
-BROJ 1 7
-OP_PUTA 1 *
-BROJ 1 3
