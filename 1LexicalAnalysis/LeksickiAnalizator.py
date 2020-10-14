@@ -40,6 +40,8 @@ class DataTypes:
     DIGITS = [str(i) for i in range(10)]
     NUMBER = "BROJ"
     VARIABLE = "IDN"
+    FULL_BREAKERS_LIST = list(OPERATORS.keys()) + \
+        list(PARENTHESIS.keys()) + TOKEN_BREAKERS
 
 
 class Lexer:
@@ -68,6 +70,7 @@ class Lexer:
         if self.pointer + possible_token[::-1][:1] == DataTypes.COMMENT:
             self.process_token(possible_token[:-1])
             self.process_comment()
+            self.process_token(self.pointer)
             possible_token = ""
         # this is half of a comment, check that later
         else:
@@ -87,17 +90,12 @@ class Lexer:
                 self.process_token(possible_token[:-1])
                 self.process_token(possible_token[::-1][:1])
                 possible_token = self.pointer
-            # this is some kind of an operator
-            elif self.pointer in DataTypes.OPERATORS or self.pointer in DataTypes.PARENTHESIS:
-                self.process_token(possible_token)
-                self.process_token(self.pointer)
-                possible_token = ""
             # this is a new token
-            elif self.pointer in DataTypes.TOKEN_BREAKERS:
+            elif self.pointer in DataTypes.FULL_BREAKERS_LIST:
                 self.process_token(possible_token)
                 self.process_token(self.pointer)
                 possible_token = ""
-            # this must be some kind of char coming after a digit
+            # this is char coming after a digit - two tokens
             elif self.pointer not in DataTypes.DIGITS and possible_token[:1] in DataTypes.DIGITS:
                 self.process_token(possible_token)
                 possible_token = self.pointer
@@ -146,12 +144,12 @@ class Lexer:
         # debug verbose
         if self.debug_flag:
             self.debug("Got token to process: '{}'".format(possible_token))
-        # token is empty or breker
-        if len(possible_token) == 0 or possible_token in DataTypes.TOKEN_BREAKERS:
-            pass
         # token is new line
-        elif possible_token == DataTypes.LINE_BREAKER:
+        if possible_token == DataTypes.LINE_BREAKER:
             self.line_number += 1
+        # token is empty or breker
+        elif len(possible_token) == 0 or possible_token in DataTypes.TOKEN_BREAKERS:
+            pass
         # token is operator, find out which one
         elif possible_token in DataTypes.OPERATORS.keys():
             identifier = DataTypes.OPERATORS[possible_token]
