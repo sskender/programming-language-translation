@@ -89,7 +89,11 @@ class Lexer:
             elif possible_token[::-1][:1] == DataTypes.COMMENT[:1]:
                 self.process_token(possible_token[:-1])
                 self.process_token(possible_token[::-1][:1])
-                possible_token = self.pointer
+                if self.pointer not in DataTypes.TOKEN_BREAKERS:
+                    possible_token = self.pointer
+                else:
+                    possible_token = ""
+                    self.process_token(self.pointer)
             # this is a new token
             elif self.pointer in DataTypes.FULL_BREAKERS_LIST:
                 self.process_token(possible_token)
