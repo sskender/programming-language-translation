@@ -129,15 +129,8 @@ class Lexer:
 
 
 def main():
-    source = """
-// stavi
-n = 10
-rez = 0// ovo ignore baci
-za i od 1 do n
-rez = rez + i+(i * 69) * (123/14 ) *i*i
-az
-q=12346546756867898707851234123451089766644
-"""
+    source = sys.stdin.read()
+
     l = Lexer(source)
     l.analyze()
 
