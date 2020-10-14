@@ -51,6 +51,19 @@ class Lexer:
         # display debug message
         print("DEBUG: {}".format(msg))
 
+    def verify_comment(self, possible_token):
+        # given the pointer and current possible token,
+        # check if this could be a comment
+        # return new value of possible token
+        if self.pointer + possible_token[::-1][:1] == DataTypes.COMMENT:
+            self.process_token(possible_token[:-1])
+            self.process_comment()
+            possible_token = ""
+        # this is half of a comment, check that later
+        else:
+            possible_token += self.pointer
+        return possible_token
+
     def analyze(self):
         # move pointer forward and process
         possible_token = ""
@@ -58,14 +71,7 @@ class Lexer:
         while self.pointer != None:
             # this may be a comment
             if self.pointer == DataTypes.COMMENT[:1]:
-                # this is definitely a comment
-                if self.pointer + possible_token[::-1][:1] == DataTypes.COMMENT:
-                    self.process_token(possible_token[:-1])
-                    self.process_comment()
-                    possible_token = ""
-                # this is half of a comment, check that later
-                else:
-                    possible_token += self.pointer
+                possible_token = self.verify_comment(possible_token)
             # maybe the last false comment was division
             elif possible_token[::-1][:1] == DataTypes.COMMENT[:1]:
                 self.process_token(possible_token[:-1])
