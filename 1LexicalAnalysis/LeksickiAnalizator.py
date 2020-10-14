@@ -8,7 +8,12 @@ class Token:
         self.value = value
 
     def __repr__(self):
-        print("{} {} {}".format(self.identifier, self.line_number, self.value))
+        return "{} {} {}".format(self.identifier,
+                                 self.line_number, self.value)
+
+    def __str__(self):
+        return "{} {} {}".format(self.identifier,
+                                 self.line_number, self.value)
 
 
 class DataTypes:
@@ -38,18 +43,23 @@ class DataTypes:
 
 
 class Lexer:
-    def __init__(self, source):
+    def __init__(self, source, debug_flag=True):
         self.source_code = source
         self.line_number = 0
         self.pointer_position = 0
         self.pointer = None
         self.tokens = []
-        self.debug_flag = True
+        self.debug_flag = debug_flag
         self.init_pointer()
 
     def debug(self, msg):
         # display debug message
         print("DEBUG: {}".format(msg))
+
+    def get_tokens(self):
+        # yield all tokens
+        for t in self.tokens:
+            yield t
 
     def verify_comment(self, possible_token):
         # given the pointer and current possible token,
@@ -85,6 +95,7 @@ class Lexer:
             # this is a new token
             elif self.pointer in DataTypes.TOKEN_BREAKERS:
                 self.process_token(possible_token)
+                self.process_token(self.pointer)
                 possible_token = ""
             # this must be some kind of char coming after a digit
             elif self.pointer not in DataTypes.DIGITS and possible_token[:1] in DataTypes.DIGITS:
@@ -122,17 +133,58 @@ class Lexer:
         while self.pointer != DataTypes.LINE_BREAKER:
             self.move_pointer_next()
 
+    def is_token_number(self, possible_token):
+        # check if token consist only of digits
+        is_number = True
+        for i in possible_token:
+            if i not in DataTypes.DIGITS:
+                is_number = False
+                break
+        return is_number
+
     def process_token(self, possible_token):
+        # debug verbose
         if self.debug_flag:
             self.debug("Got token to process: '{}'".format(possible_token))
-        pass
+        # token is empty or breker
+        if len(possible_token) == 0 or possible_token in DataTypes.TOKEN_BREAKERS:
+            pass
+        # token is new line
+        elif possible_token == DataTypes.LINE_BREAKER:
+            self.line_number += 1
+        # token is operator, find out which one
+        elif possible_token in DataTypes.OPERATORS.keys():
+            identifier = DataTypes.OPERATORS[possible_token]
+            token = Token(identifier, self.line_number, possible_token)
+            self.tokens.append(token)
+        # token is parenthesis, find out which one
+        elif possible_token in DataTypes.PARENTHESIS.keys():
+            identifier = DataTypes.PARENTHESIS[possible_token]
+            token = Token(identifier, self.line_number, possible_token)
+            self.tokens.append(token)
+        # token is language keyword
+        elif possible_token in DataTypes.KEY_WORDS.keys():
+            identifier = DataTypes.KEY_WORDS[possible_token]
+            token = Token(identifier, self.line_number, possible_token)
+            self.tokens.append(token)
+        # token contains only digits
+        elif self.is_token_number(possible_token):
+            token = Token(DataTypes.NUMBER, self.line_number, possible_token)
+            self.tokens.append(token)
+        # token must be a variable
+        else:
+            token = Token(DataTypes.VARIABLE, self.line_number, possible_token)
+            self.tokens.append(token)
 
 
 def main():
     source = sys.stdin.read()
 
-    l = Lexer(source)
+    l = Lexer(source, debug_flag=False)
     l.analyze()
+
+    for token in l.get_tokens():
+        print(token)
 
 
 if __name__ == "__main__":
