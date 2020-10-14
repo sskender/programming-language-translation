@@ -1,3 +1,6 @@
+import sys
+
+
 class Token:
     def __init__(self, identifier, line_number, value):
         self.identifier = identifier
@@ -26,12 +29,12 @@ class DataTypes:
         "(": "L_ZAGRADA",
         ")": "D_ZAGRADA"
     }
-    CONSTANTS = {
-        "variable": "IDN",
-        "number": "BROJ"
-    }
-    TOKEN_BREAKERS = [" ", "\t"]
-    LINE_BREAKERS = ["\n"]
+    COMMENT = "//"
+    TOKEN_BREAKERS = [" ", "\t", "\n"]
+    LINE_BREAKER = "\n"
+    DIGITS = [str(i) for i in range(10)]
+    NUMBER = "BROJ"
+    VARIABLE = "IDN"
 
 
 class Lexer:
@@ -42,55 +45,56 @@ class Lexer:
         self.pointer = None
         self.tokens = []
         self.debug_flag = True
+        self.init_pointer()
 
     def debug(self, msg):
+        # display debug message
         print("DEBUG: {}".format(msg))
 
     def analyze(self):
-        # set up pointer and build token
-        self.init_pointer()
+        # move pointer forward and process
         possible_token = ""
 
-        # build possible token by moving the pointer
         while self.pointer != None:
-            # debug
-            #  if self.debug_flag:
-            #      self.debug("Current pointer: '{}'".format(self.pointer))
-            # build current possible token
-            possible_token += self.pointer
-            # process current pointer position
-            # TODO comments - bolje, ali ne gotovo
-            if self.pointer == "/" and (possible_token == "/" or possible_token[-1] == "/"):
-                while self.pointer != '\n':
-                    self.move_pointer_next()
+            # this may be a comment
+            if self.pointer == DataTypes.COMMENT[:1]:
+                # this is definitely a comment
+                if self.pointer + possible_token[::-1][:1] == DataTypes.COMMENT:
+                    self.process_token(possible_token[:-1])
+                    self.process_comment()
+                    possible_token = ""
+                # this is half of a comment, check that later
+                else:
+                    possible_token += self.pointer
+            # maybe the last false comment was division
+            elif possible_token[::-1][:1] == DataTypes.COMMENT[:1]:
                 self.process_token(possible_token[:-1])
+                self.process_token(possible_token[::-1][:1])
+                possible_token = self.pointer
+            # this is some kind of an operator
+            elif self.pointer in DataTypes.OPERATORS or self.pointer in DataTypes.PARENTHESIS:
+                self.process_token(possible_token)
+                self.process_token(self.pointer)
                 possible_token = ""
-            # math operators
-            elif self.pointer in DataTypes.OPERATORS:
-                self.process_token(possible_token[:-1])
-                self.process_token(possible_token[-1])
-                possible_token = ""
-            # parenthesis
-            elif self.pointer in DataTypes.PARENTHESIS:
-                self.process_token(possible_token[:-1])
-                self.process_token(possible_token[-1])
-                possible_token = ""
-            # new word
+            # this is a new token
             elif self.pointer in DataTypes.TOKEN_BREAKERS:
                 self.process_token(possible_token)
                 possible_token = ""
-            # new line
-            elif self.pointer in DataTypes.LINE_BREAKERS:
+            # this must be some kind of char coming after a digit
+            elif self.pointer not in DataTypes.DIGITS and possible_token[:1] in DataTypes.DIGITS:
                 self.process_token(possible_token)
-                self.line_number += 1
-                possible_token = ""
-            # move pointer
+                possible_token = self.pointer
+            # this is something else
+            else:
+                possible_token += self.pointer
+            # move pointer forward
             self.move_pointer_next()
 
         # process what's left of token
         self.process_token(possible_token)
 
     def init_pointer(self):
+        # set pointer to point at the first char
         if len(self.source_code) >= 1:
             self.pointer_position = 0
             self.pointer = self.source_code[self.pointer_position]
@@ -100,15 +104,21 @@ class Lexer:
             self.pointer = None
 
     def move_pointer_next(self):
+        # move pointer to the next char
         if self.pointer_position + 1 < len(self.source_code):
             self.pointer_position += 1
             self.pointer = self.source_code[self.pointer_position]
         else:
             self.pointer = None
 
+    def process_comment(self):
+        # everything is comment till the end of line
+        while self.pointer != DataTypes.LINE_BREAKER:
+            self.move_pointer_next()
+
     def process_token(self, possible_token):
         if self.debug_flag:
-            self.debug("Got token to process: {}".format(possible_token))
+            self.debug("Got token to process: '{}'".format(possible_token))
         pass
 
 
