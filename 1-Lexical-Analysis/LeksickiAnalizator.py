@@ -36,12 +36,12 @@ class DataTypes:
     }
     COMMENT = "//"
     TOKEN_BREAKERS = [" ", "\t", "\n"]
-    LINE_BREAKER = "\n"
+    LINE_BREAKERS = ["\n"]
     DIGITS = [str(i) for i in range(10)]
     NUMBER = "BROJ"
     VARIABLE = "IDN"
-    FULL_BREAKERS_LIST = list(OPERATORS.keys()) + \
-        list(PARENTHESIS.keys()) + TOKEN_BREAKERS
+    FULL_BREAKERS_LIST = TOKEN_BREAKERS + \
+        list(OPERATORS.keys()) + list(PARENTHESIS.keys())
 
 
 class Lexer:
@@ -63,53 +63,60 @@ class Lexer:
         for t in self.tokens:
             yield t
 
-    def verify_comment(self, possible_token):
-        # given the pointer and current possible token,
-        # check if this could be a comment
-        # return new value of possible token
+    def analyze_half_comment(self, possible_token):
+        # cursor is at the second '/'
+        # this is definitely a comment
         if self.pointer + possible_token[::-1][:1] == DataTypes.COMMENT:
             self.process_token(possible_token[:-1])
             self.process_comment()
             self.process_token(self.pointer)
             possible_token = ""
-        # this is half of a comment, check that later
+        # there is only one '/' so far
+        # it is unknown if this is a comment or not
         else:
             possible_token += self.pointer
         return possible_token
 
+    def analyze_false_comment(self, possible_token):
+        # there was only one '/'
+        # this is not a comment
+        # it is a token followed by division
+        self.process_token(possible_token[:-1])
+        self.process_token(possible_token[::-1][:1])
+        if self.pointer not in DataTypes.TOKEN_BREAKERS:
+            possible_token = self.pointer
+        else:
+            self.process_token(self.pointer)
+            possible_token = ""
+        return possible_token
+
     def analyze(self):
-        # move pointer forward and process
+        # move pointer forward and throw token for processing
         possible_token = ""
 
         while self.pointer != None:
-            # this may be a comment
+            # this starts as a comment, check it out
             if self.pointer == DataTypes.COMMENT[:1]:
-                possible_token = self.verify_comment(possible_token)
+                possible_token = self.analyze_half_comment(possible_token)
             # maybe the last false comment was division
             elif possible_token[::-1][:1] == DataTypes.COMMENT[:1]:
-                self.process_token(possible_token[:-1])
-                self.process_token(possible_token[::-1][:1])
-                if self.pointer not in DataTypes.TOKEN_BREAKERS:
-                    possible_token = self.pointer
-                else:
-                    possible_token = ""
-                    self.process_token(self.pointer)
+                possible_token = self.analyze_false_comment(possible_token)
             # this is a new token
             elif self.pointer in DataTypes.FULL_BREAKERS_LIST:
                 self.process_token(possible_token)
                 self.process_token(self.pointer)
                 possible_token = ""
-            # this is char coming after a digit - two tokens
+            # this is a char coming after a digit - two tokens
             elif self.pointer not in DataTypes.DIGITS and possible_token[:1] in DataTypes.DIGITS:
                 self.process_token(possible_token)
                 possible_token = self.pointer
-            # this is something else
+            # this is something else, keep digging
             else:
                 possible_token += self.pointer
             # move pointer forward
             self.move_pointer_next()
 
-        # process what's left of token
+        # process what's left as token
         self.process_token(possible_token)
 
     def init_pointer(self):
@@ -131,12 +138,12 @@ class Lexer:
             self.pointer = None
 
     def process_comment(self):
-        # everything is comment till the end of line
-        while self.pointer != DataTypes.LINE_BREAKER:
+        # everything is a comment till the end of line
+        while self.pointer not in DataTypes.LINE_BREAKERS:
             self.move_pointer_next()
 
     def is_token_number(self, possible_token):
-        # check if token consist only of digits
+        # check if token consists only of digits
         is_number = True
         for i in possible_token:
             if i not in DataTypes.DIGITS:
@@ -148,8 +155,8 @@ class Lexer:
         # debug verbose
         if self.debug_flag:
             self.debug("Got token to process: '{}'".format(possible_token))
-        # token is new line
-        if possible_token == DataTypes.LINE_BREAKER:
+        # token is a new line
+        if possible_token in DataTypes.LINE_BREAKERS:
             self.line_number += 1
         # token is empty or breker
         elif len(possible_token) == 0 or possible_token in DataTypes.TOKEN_BREAKERS:
