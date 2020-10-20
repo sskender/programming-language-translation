@@ -56,7 +56,10 @@ class Lexer:
 
     def debug(self, msg):
         # display debug message
-        print("DEBUG: {}".format(msg))
+        if self.debug_flag:
+            print("DEBUG: {}".format(msg))
+        else:
+            pass
 
     def get_tokens(self):
         # yield all tokens
@@ -153,8 +156,8 @@ class Lexer:
 
     def process_token(self, possible_token):
         # debug verbose
-        if self.debug_flag:
-            self.debug("Got token to process: '{}'".format(possible_token))
+        self.debug("Got token to process: '{}'".format(possible_token))
+
         # token is a new line
         if possible_token in DataTypes.LINE_BREAKERS:
             self.line_number += 1
