@@ -1,6 +1,9 @@
 class Grammar:
     """
-    'PJ' GRAMMAR:
+    'PJ' GRAMMAR
+
+    Grammar table of language 'PJ'
+
 
     <program> ::= <lista_naredbi> = { IDN KR_ZA ⏊ }
 
@@ -32,7 +35,12 @@ class Grammar:
     <P> ::= BROJ = { BROJ }
     """
 
-    """ Token identifiers """
+    """ Language token identifiers and grammar stored in variables and lists """
+
+    """ Default token identifiers <class Token> """
+    IDN = "IDN"
+    KR_ZA = "KR_ZA"
+    KR_AZ = "KR_AZ"
     OP_PLUS = "OP_PLUS"
     OP_MINUS = "OP_MINUS"
     OP_PUTA = "OP_PUTA"
@@ -40,7 +48,11 @@ class Grammar:
     L_ZAGRADA = "L_ZAGRADA"
     D_ZAGRADA = "D_ZAGRADA"
 
-    """ Expressions table """
+    """ List of valid operations <lista_naredbi> """
+    OPERATIONS_LIST_VALID_OPTIONS = ["IDN", "KR_ZA", "KR_AZ", None]
+    OPERATIONS_LIST_VALID_END_OPTIONS = ["KR_AZ", None]
+
+    """ Expressions table <E> and expressions list table <E_lista> """
     EXPRESSION_VALID_OPTIONS = ["IDN", "BROJ",
                                 "OP_PLUS", "OP_MINUS", "L_ZAGRADA"]
     EXPRESSION_LIST_VALID_END_OPTIONS = [
@@ -48,14 +60,14 @@ class Grammar:
     EXPRESSION_LIST_VALID_OPTIONS = [
         "OP_PLUS", "OP_MINUS"] + EXPRESSION_LIST_VALID_END_OPTIONS
 
-    """ Terms table """
+    """ Terms table <T> and terms list table <T_lista> """
     TERM_VALID_OPTIONS = ["IDN", "BROJ", "OP_PLUS", "OP_MINUS", "L_ZAGRADA"]
     TERM_LIST_VALID_END_OPTIONS = ["IDN", "KR_ZA", "KR_DO",
                                    "KR_AZ", "OP_PLUS", "OP_MINUS", "L_ZAGRADA", None]
     TERM_LIST_VALID_OPTIONS = ["OP_PUTA",
                                "OP_DIJELI"] + TERM_LIST_VALID_END_OPTIONS
 
-    """ Factors table """
+    """ Factors table <P> """
     FACTOR_VALID_OPTIONS = ["OP_PLUS", "OP_MINUS", "L_ZAGRADA", "IDN", "BROJ"]
     FACTOR_VALID_END_OPTIONS = ["IDN", "BROJ"]
 
@@ -93,6 +105,44 @@ class AST:
         return "{}\n1 {}\n2 {}\n3 {}\n".format(self.node_name, self.left_node, self.right_node, self.end_token)
 
 
+class LoopAST(AST):
+    """ Abstract syntax tree but for program loop """
+
+    def __init__(self, node_name, kr_za_node, idn_node, kr_od_node,
+                 expression_node, kr_do_node, expression_node2,
+                 operations_list_tree, kr_az_node):
+        super().__init__(node_name, kr_za_node, idn_node, kr_od_node)
+        self.expression_node = expression_node
+        self.kr_do_node = kr_do_node,
+        self.expression_node2 = expression_node2
+        self.operations_list_tree = operations_list_tree,
+        self.kr_az_node = kr_az_node
+
+    def __repr__(self):
+        return "{}\n1 {}\n2 {}\n3 {}\n4 {}\n5 {}\n6 {}\n7 {}\n8 {}\n".format(self.node_name,
+                                                                             self.left_node,
+                                                                             self.right_node,
+                                                                             self.end_token,
+                                                                             self.expression_node,
+                                                                             self.kr_do_node,
+                                                                             self.expression_node2,
+                                                                             self.operations_list_tree,
+                                                                             self.kr_az_node
+                                                                             )
+
+    def __str__(self):
+        return "{}\n1 {}\n2 {}\n3 {}\n4 {}\n5 {}\n6 {}\n7 {}\n8 {}\n".format(self.node_name,
+                                                                             self.left_node,
+                                                                             self.right_node,
+                                                                             self.end_token,
+                                                                             self.expression_node,
+                                                                             self.kr_do_node,
+                                                                             self.expression_node2,
+                                                                             self.operations_list_tree,
+                                                                             self.kr_az_node
+                                                                             )
+
+
 class Parser:
     """ Language 'PJ' parser """
 
@@ -102,7 +152,6 @@ class Parser:
         self.current_token_index = -1
         self.current_token = None
         self.ast_root = None
-        self.init_parser()
 
     def debug(self, msg):
         if self.debug_flag:
@@ -120,38 +169,97 @@ class Parser:
 
     def advance(self):
         """ Eat the next token """
+        self.debug(f"advancing from: {self.current_token}")
+
         if self.current_token_index + 1 < len(self.tokens):
             self.current_token_index += 1
             self.current_token = self.tokens[self.current_token_index]
         else:
             self.current_token = None
 
+        self.debug(f"advanced to: {self.current_token}")
+
     def parse(self):
-        # TODO WTF LOOOOOOL
-        # TODO how to navigate to next command
         """ Generate AST tree """
-        # check if valid start command
-        # and self.current_token.identifier in Grammar.COMMANDS_LIST:
-        if self.current_token != None:
-            # start command is identifer expression
-            tree = self.operation_compound()
-            self.ast_root = tree
+        self.init_parser()
+
+        program_tree = self.program()
+        self.ast_root = program_tree
+
+    def program(self):
+        """
+        Program: <program>
+
+        Options:
+            <lista_naredbi> = {IDN KR_ZA ⏊}
+        """
+        self.debug("program starting: {}".format(self.current_token))
+
+        if self.current_token is None:
+            return AST("<program>", None)
+        elif self.current_token.identifier == Grammar.IDN or \
+                self.current_token.identifier == Grammar.KR_ZA:
+            operations_list_tree = self.operations_list()
+            return AST("<program>", operations_list_tree)
         else:
-            # start command is loop expression
-            pass
+            raise Exception("invalid start of program")
+
+    def operations_list(self):
+        """
+        List of operations: <lista_naredbi>
+
+        Options:
+            <naredba> <lista_naredbi> = {IDN KR_ZA}
+            $ = {KR_AZ ⏊}
+        """
+        self.debug("operations list: {}".format(self.current_token))
+
+        # end reached
+        if self.current_token is None or self.current_token.identifier == Grammar.KR_AZ:
+            return AST("<lista_naredbi>", None)
+
+        # identifer or loop
+        elif self.current_token.identifier == Grammar.IDN or self.current_token.identifier == Grammar.KR_ZA:
+            operation_tree = self.operation()
+            operations_list_tree = self.operations_list()
+
+            return AST("<lista_naredbi>", operation_tree, operations_list_tree)
+
+        # invalid token
+        else:
+            raise Exception("oparations list: invalid token")
 
     def operation(self):
-        # <naredba_pridruzivanja>
-        # <za_petlja>
-        pass
+        """
+        Operation: <naredba>
+
+        Options:
+            <naredba_pridruzivanja> = {IDN}
+            <za_petlja> = {KR_ZA}
+        """
+        self.debug("operation {}".format(self.current_token))
+
+        if self.current_token is None:
+            raise Exception("operation token can not be null")
+
+        if self.current_token.identifier == Grammar.IDN:
+            compound_tree = self.operation_compound()
+            return AST("<naredba>", compound_tree)
+        elif self.current_token.identifier == Grammar.KR_ZA:
+            loop_tree = self.operation_loop()
+            return AST("<naredba>", loop_tree)
+        else:
+            raise Exception("wtf token is this")
 
     def operation_compound(self):
         """
         Operation compound: <naredba_pridruzivanja>
 
         Options:
-            IDN OP_PRIDRUZI <E> = { IDN }
+            IDN OP_PRIDRUZI <E> = {IDN}
         """
+        self.debug("operation compound: {}".format(self.current_token))
+
         left_token = self.current_token
         self.advance()
         operation = self.current_token
@@ -163,8 +271,33 @@ class Parser:
     def operation_loop(self):
         """
         Operation loop: <za_petlja>
+
+        Options:
+            KR_ZA IDN KR_OD <E> KR_DO <E> <lista_naredbi> KR_AZ = { KR_ZA }
         """
-        pass
+        self.debug("operation loop: {}".format(self.current_token))
+
+        loop_definition_start = self.current_token
+        self.advance()
+        identifier = self.current_token
+        self.advance()
+        loop_start = self.current_token
+        self.advance()
+
+        expression_start = self.expression()
+
+        loop_finish = self.current_token
+        self.advance()
+
+        expression_finish = self.expression()
+        operations_list = self.operations_list()
+
+        loop_definition_end = self.current_token
+        self.advance()
+
+        return LoopAST("<za_petlja>", loop_definition_start, identifier, loop_start,
+                       expression_start, loop_finish, expression_finish,
+                       operations_list, loop_definition_end)
 
     def expression(self):
         """
@@ -311,7 +444,7 @@ class Parser:
             left_token = self.current_token
             self.advance()
             expression_tree = self.expression()
-            self.advance()
+            # self.advance() # TODO I don't think you should walk after expression
             right_token = self.current_token
 
             if right_token is None or \
@@ -329,7 +462,21 @@ class Parser:
 def main():
     tokens = []
 
-    lexer_output = """IDN 4 rez
+    lexer_output = """IDN 1 n
+OP_PRIDRUZI 1 =
+BROJ 1 5
+IDN 2 rez
+OP_PRIDRUZI 2 =
+BROJ 2 0
+KR_ZA 3 za
+IDN 3 i
+KR_OD 3 od
+IDN 3 n
+KR_DO 3 do
+IDN 3 n
+OP_PLUS 3 +
+BROJ 3 5
+IDN 4 rez
 OP_PRIDRUZI 4 =
 IDN 4 rez
 OP_MINUS 4 -
@@ -339,7 +486,8 @@ IDN 4 i
 OP_PLUS 4 +
 IDN 4 i
 OP_DIJELI 4 /
-BROJ 4 3"""
+BROJ 4 3
+KR_AZ 5 az"""
 
     for line in lexer_output.split("\n"):
         (identifier, line_number, value) = line.split(" ")
