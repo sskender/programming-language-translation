@@ -159,6 +159,10 @@ class Parser:
         else:
             pass
 
+    def print_ast_tree(self):
+        """ Print the whole AST program tree """
+        print(self.ast_root)
+
     def init_parser(self):
         """ Initialize parser to eat the first token """
         if len(self.tokens) >= 1:
@@ -495,8 +499,7 @@ KR_AZ 5 az"""
 
     parser = Parser(tokens, debug_flag=True)
     parser.parse()
-    print("END:")
-    print(parser.ast_root)
+    parser.print_ast_tree()
 
 
 if __name__ == "__main__":
