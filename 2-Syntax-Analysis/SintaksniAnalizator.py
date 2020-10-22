@@ -116,6 +116,20 @@ class AST:
         return self.__repr__()
 
 
+class ParserException(Exception):
+    """ Custom parsing exception class """
+
+    def __init__(self, token, message="Invalid token"):
+        self.token = token
+        super().__init__(message)
+
+    def __repr__(self):
+        return f"err {self.token.__str__()}"
+
+    def __str__(self):
+        return f"err {self.token.__str__()}"
+
+
 class Parser:
     """ Language 'PJ' parser """
 
@@ -184,7 +198,7 @@ class Parser:
             return AST("<program>", tree_children)
 
         else:
-            raise Exception("invalid start of program")
+            raise ParserException(self.current_token)
 
     def operations_list(self):
         """
@@ -211,7 +225,7 @@ class Parser:
 
         # invalid token
         else:
-            raise Exception("oparations list: invalid token")
+            raise ParserException(self.current_token)
 
     def operation(self):
         """
@@ -224,7 +238,7 @@ class Parser:
         self.debug("operation {}".format(self.current_token))
 
         if self.current_token is None:
-            raise Exception("operation token can not be null")
+            raise ParserException(self.current_token)
 
         if self.current_token.identifier == Grammar.IDN:
             compound_tree = self.operation_compound()
@@ -239,7 +253,7 @@ class Parser:
             return AST("<naredba>", tree_children)
 
         else:
-            raise Exception("wtf token is this")
+            raise ParserException(self.current_token)
 
     def operation_compound(self):
         """
@@ -303,7 +317,7 @@ class Parser:
         # invalid token
         if self.current_token is None or \
                 self.current_token.identifier not in Grammar.EXPRESSION_VALID_OPTIONS:
-            raise Exception("expression: token cant be none")
+            raise ParserException(self.current_token)
 
         t_tree = self.term()
         e_list_tree = self.expression_list()
@@ -330,7 +344,7 @@ class Parser:
 
         # invalid token
         if self.current_token.identifier not in Grammar.EXPRESSION_LIST_VALID_OPTIONS:
-            raise Exception("invalid expression list token")
+            raise ParserException(self.current_token)
 
         # OP_PLUS or OP_MINUS reached
         elif self.current_token.identifier == Grammar.OP_PLUS or \
@@ -345,7 +359,7 @@ class Parser:
 
         # should never come here
         else:
-            raise Exception("invalid token in expression list")
+            raise ParserException(self.current_token)
 
     def term(self):
         """
@@ -359,8 +373,7 @@ class Parser:
         # invalid token
         if self.current_token is None or \
                 self.current_token.identifier not in Grammar.TERM_VALID_OPTIONS:
-            raise Exception(
-                "invalid term token: {}".format(self.current_token))
+            raise ParserException(self.current_token)
 
         p_tree = self.primary()
         t_list_tree = self.term_list()
@@ -387,8 +400,7 @@ class Parser:
 
         # invalid token
         if self.current_token.identifier not in Grammar.TERM_LIST_VALID_OPTIONS:
-            raise Exception(
-                "invalid term list token: {}".format(self.current_token))
+            raise ParserException(self.current_token)
 
         # OP_PUTA or OP_DIJELI reached
         elif self.current_token.identifier == Grammar.OP_PUTA or \
@@ -403,7 +415,7 @@ class Parser:
 
         # should never come here
         else:
-            raise Exception("invalid token in term list")
+            raise ParserException(self.current_token)
 
     def primary(self):
         """
@@ -421,7 +433,7 @@ class Parser:
         # invalid token
         if self.current_token is None or \
                 self.current_token.identifier not in Grammar.PRIMARY_VALID_OPTIONS:
-            raise Exception("invalid primary token")
+            raise ParserException(self.current_token)
 
         # end reached
         if self.current_token.identifier in Grammar.PRIMARY_VALID_END_OPTIONS:
@@ -452,7 +464,7 @@ class Parser:
 
             if r_paren_token is None or \
                     r_paren_token.identifier != Grammar.D_ZAGRADA:
-                raise Exception("term: missing right parenthesis")
+                raise ParserException(self.current_token)
             else:
                 self.advance()  # move away from right parenthesis
 
@@ -461,7 +473,7 @@ class Parser:
 
         # should never come here
         else:
-            raise Exception("invalid token in primary")
+            raise ParserException(self.current_token)
 
 
 def main():
@@ -476,8 +488,12 @@ def main():
             break
 
     parser = Parser(tokens, debug_flag=True)
-    parser.parse()
-    parser.print_ast_tree()
+
+    try:
+        parser.parse()
+        parser.print_ast_tree()
+    except ParserException as e:
+        print(e)
 
 
 if __name__ == "__main__":
