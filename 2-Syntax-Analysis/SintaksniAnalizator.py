@@ -66,7 +66,7 @@ class Grammar:
     """ Terms table <T> and terms list table <T_lista> """
     TERM_VALID_OPTIONS = ["IDN", "BROJ", "OP_PLUS", "OP_MINUS", "L_ZAGRADA"]
     TERM_LIST_VALID_END_OPTIONS = ["IDN", "KR_ZA", "KR_DO",
-                                   "KR_AZ", "OP_PLUS", "OP_MINUS", "L_ZAGRADA", None]
+                                   "KR_AZ", "OP_PLUS", "OP_MINUS", "D_ZAGRADA", None]
     TERM_LIST_VALID_OPTIONS = ["OP_PUTA",
                                "OP_DIJELI"] + TERM_LIST_VALID_END_OPTIONS
 
@@ -451,7 +451,7 @@ class Parser:
             r_paren_token = self.current_token
 
             if r_paren_token is None or \
-                    r_paren_token != Grammar.D_ZAGRADA:
+                    r_paren_token.identifier != Grammar.D_ZAGRADA:
                 raise Exception("term: missing right parenthesis")
             else:
                 self.advance()  # move away from right parenthesis
