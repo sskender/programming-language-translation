@@ -70,9 +70,9 @@ class Grammar:
     TERM_LIST_VALID_OPTIONS = ["OP_PUTA",
                                "OP_DIJELI"] + TERM_LIST_VALID_END_OPTIONS
 
-    """ Factors table <P> """
-    FACTOR_VALID_OPTIONS = ["OP_PLUS", "OP_MINUS", "L_ZAGRADA", "IDN", "BROJ"]
-    FACTOR_VALID_END_OPTIONS = ["IDN", "BROJ"]
+    """ Primaries table <P> """
+    PRIMARY_VALID_OPTIONS = ["OP_PLUS", "OP_MINUS", "L_ZAGRADA", "IDN", "BROJ"]
+    PRIMARY_VALID_END_OPTIONS = ["IDN", "BROJ"]
 
 
 class Token:
@@ -362,7 +362,7 @@ class Parser:
             raise Exception(
                 "invalid term token: {}".format(self.current_token))
 
-        p_tree = self.factor()
+        p_tree = self.primary()
         t_list_tree = self.term_list()
 
         tree_children = [p_tree, t_list_tree]
@@ -405,9 +405,9 @@ class Parser:
         else:
             raise Exception("invalid token in term list")
 
-    def factor(self):
+    def primary(self):
         """
-        Factor: <P>
+        Primary: <P>
 
         Options:
             OP_PLUS <P> = { OP_PLUS }
@@ -416,15 +416,15 @@ class Parser:
             IDN = { IDN }
             BROJ = { BROJ }
         """
-        self.debug("factor: {}".format(self.current_token))
+        self.debug("primary: {}".format(self.current_token))
 
         # invalid token
         if self.current_token is None or \
-                self.current_token.identifier not in Grammar.FACTOR_VALID_OPTIONS:
-            raise Exception("invalid factor token")
+                self.current_token.identifier not in Grammar.PRIMARY_VALID_OPTIONS:
+            raise Exception("invalid primary token")
 
         # end reached
-        if self.current_token.identifier in Grammar.FACTOR_VALID_END_OPTIONS:
+        if self.current_token.identifier in Grammar.PRIMARY_VALID_END_OPTIONS:
             end_token = self.current_token
             self.advance()
 
@@ -437,7 +437,7 @@ class Parser:
             plus_minus_token = self.current_token
             self.advance()
 
-            p_tree = self.factor()
+            p_tree = self.primary()
 
             tree_children = [plus_minus_token, p_tree]
             return AST("<P>", tree_children)
@@ -461,7 +461,7 @@ class Parser:
 
         # should never come here
         else:
-            raise Exception("invalid token in factor")
+            raise Exception("invalid token in primary")
 
 
 def main():
