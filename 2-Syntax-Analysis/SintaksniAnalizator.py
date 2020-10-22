@@ -92,55 +92,25 @@ class Token:
 class AST:
     """ Abstract syntax tree """
 
-    def __init__(self, node_name, left_node=None, right_node=None, end_token=None):
+    def __init__(self, node_name, node_children=[]):
         self.node_name = node_name
-        self.left_node = left_node
-        self.right_node = right_node
-        self.end_token = end_token
+        self.node_children = node_children
 
-    def __repr__(self):
-        return "{}\n1 {}\n2 {}\n3 {}\n".format(self.node_name, self.left_node, self.right_node, self.end_token)
+    def __repr__(self, margin_size=0):
+        s = f"{' '*margin_size}{self.node_name}\n"
+        if len(self.node_children) == 0 or self.node_children[0] is None:
+            s += f"{' '*margin_size} $\n"
+        else:
+            for child in self.node_children:
+                if isinstance(child, Token):
+                    s += f"{' '*margin_size} {child.__repr__()}\n"
+                else:
+                    s += f"{child.__repr__(margin_size+1)}"
 
-    def __str__(self):
-        return "{}\n1 {}\n2 {}\n3 {}\n".format(self.node_name, self.left_node, self.right_node, self.end_token)
-
-
-class LoopAST(AST):
-    """ Abstract syntax tree but for program loop """
-
-    def __init__(self, node_name, kr_za_node, idn_node, kr_od_node,
-                 expression_node, kr_do_node, expression_node2,
-                 operations_list_tree, kr_az_node):
-        super().__init__(node_name, kr_za_node, idn_node, kr_od_node)
-        self.expression_node = expression_node
-        self.kr_do_node = kr_do_node,
-        self.expression_node2 = expression_node2
-        self.operations_list_tree = operations_list_tree,
-        self.kr_az_node = kr_az_node
-
-    def __repr__(self):
-        return "{}\n1 {}\n2 {}\n3 {}\n4 {}\n5 {}\n6 {}\n7 {}\n8 {}\n".format(self.node_name,
-                                                                             self.left_node,
-                                                                             self.right_node,
-                                                                             self.end_token,
-                                                                             self.expression_node,
-                                                                             self.kr_do_node,
-                                                                             self.expression_node2,
-                                                                             self.operations_list_tree,
-                                                                             self.kr_az_node
-                                                                             )
+        return s
 
     def __str__(self):
-        return "{}\n1 {}\n2 {}\n3 {}\n4 {}\n5 {}\n6 {}\n7 {}\n8 {}\n".format(self.node_name,
-                                                                             self.left_node,
-                                                                             self.right_node,
-                                                                             self.end_token,
-                                                                             self.expression_node,
-                                                                             self.kr_do_node,
-                                                                             self.expression_node2,
-                                                                             self.operations_list_tree,
-                                                                             self.kr_az_node
-                                                                             )
+        return self.__repr__()
 
 
 class Parser:
@@ -161,7 +131,7 @@ class Parser:
 
     def print_ast_tree(self):
         """ Print the whole AST program tree """
-        print(self.ast_root)
+        print(self.ast_root, end="")
 
     def init_parser(self):
         """ Initialize parser to eat the first token """
@@ -200,11 +170,16 @@ class Parser:
         self.debug("program starting: {}".format(self.current_token))
 
         if self.current_token is None:
-            return AST("<program>", None)
+            tree_children = [None]
+            return AST("<program>", tree_children)
+
         elif self.current_token.identifier == Grammar.IDN or \
                 self.current_token.identifier == Grammar.KR_ZA:
             operations_list_tree = self.operations_list()
-            return AST("<program>", operations_list_tree)
+
+            tree_children = [operations_list_tree]
+            return AST("<program>", tree_children)
+
         else:
             raise Exception("invalid start of program")
 
@@ -220,14 +195,16 @@ class Parser:
 
         # end reached
         if self.current_token is None or self.current_token.identifier == Grammar.KR_AZ:
-            return AST("<lista_naredbi>", None)
+            tree_children = [None]
+            return AST("<lista_naredbi>", tree_children)
 
         # identifer or loop
         elif self.current_token.identifier == Grammar.IDN or self.current_token.identifier == Grammar.KR_ZA:
             operation_tree = self.operation()
             operations_list_tree = self.operations_list()
 
-            return AST("<lista_naredbi>", operation_tree, operations_list_tree)
+            tree_children = [operation_tree, operations_list_tree]
+            return AST("<lista_naredbi>", tree_children)
 
         # invalid token
         else:
@@ -248,10 +225,16 @@ class Parser:
 
         if self.current_token.identifier == Grammar.IDN:
             compound_tree = self.operation_compound()
-            return AST("<naredba>", compound_tree)
+
+            tree_children = [compound_tree]
+            return AST("<naredba>", tree_children)
+
         elif self.current_token.identifier == Grammar.KR_ZA:
             loop_tree = self.operation_loop()
-            return AST("<naredba>", loop_tree)
+
+            tree_children = [loop_tree]
+            return AST("<naredba>", tree_children)
+
         else:
             raise Exception("wtf token is this")
 
@@ -268,9 +251,11 @@ class Parser:
         self.advance()
         operation = self.current_token
         self.advance()
+
         right_tree = self.expression()
 
-        return AST("<naredba_pridruzivanja>", left_token, operation, right_tree)
+        tree_children = [left_token, operation, right_tree]
+        return AST("<naredba_pridruzivanja>", tree_children)
 
     def operation_loop(self):
         """
@@ -299,9 +284,9 @@ class Parser:
         loop_definition_end = self.current_token
         self.advance()
 
-        return LoopAST("<za_petlja>", loop_definition_start, identifier, loop_start,
-                       expression_start, loop_finish, expression_finish,
-                       operations_list, loop_definition_end)
+        tree_children = [loop_definition_start, identifier, loop_start, expression_start,
+                         loop_finish, expression_finish, operations_list, loop_definition_end]
+        return AST("<za_petlja>", tree_children)
 
     def expression(self):
         """
@@ -320,7 +305,8 @@ class Parser:
         t_tree = self.term()
         e_list_tree = self.expression_list()
 
-        return AST("<E>", t_tree, e_list_tree)
+        tree_children = [t_tree, e_list_tree]
+        return AST("<E>", tree_children)
 
     def expression_list(self):
         """
@@ -336,7 +322,8 @@ class Parser:
         # end reached
         if self.current_token is None or \
                 self.current_token.identifier in Grammar.EXPRESSION_LIST_VALID_END_OPTIONS:
-            return AST("<E_lista>", None)
+            tree_children = [None]
+            return AST("<E_lista>", tree_children)
 
         # invalid token
         if self.current_token.identifier not in Grammar.EXPRESSION_LIST_VALID_OPTIONS:
@@ -345,11 +332,13 @@ class Parser:
         # OP_PLUS or OP_MINUS reached
         elif self.current_token.identifier == Grammar.OP_PLUS or \
                 self.current_token.identifier == Grammar.OP_MINUS:
-            left_token = self.current_token
+            plus_minus_token = self.current_token
             self.advance()
+
             e_tree = self.expression()
 
-            return AST("<E_lista>", left_token, e_tree)
+            tree_children = [plus_minus_token, e_tree]
+            return AST("<E_lista>", tree_children)
 
         # should never come here
         else:
@@ -373,7 +362,8 @@ class Parser:
         p_tree = self.factor()
         t_list_tree = self.term_list()
 
-        return AST("<T>", p_tree, t_list_tree)
+        tree_children = [p_tree, t_list_tree]
+        return AST("<T>", tree_children)
 
     def term_list(self):
         """
@@ -389,7 +379,8 @@ class Parser:
         # end reached
         if self.current_token is None or \
                 self.current_token.identifier in Grammar.TERM_LIST_VALID_END_OPTIONS:
-            return AST("<T_lista>", None)
+            tree_children = [None]
+            return AST("<T_lista>", tree_children)
 
         # invalid token
         if self.current_token.identifier not in Grammar.TERM_LIST_VALID_OPTIONS:
@@ -399,11 +390,13 @@ class Parser:
         # OP_PUTA or OP_DIJELI reached
         elif self.current_token.identifier == Grammar.OP_PUTA or \
                 self.current_token.identifier == Grammar.OP_DIJELI:
-            left_token = self.current_token
+            mul_div_token = self.current_token
             self.advance()
+
             p_tree = self.term()
 
-            return AST("<T_lista>", left_token, p_tree)
+            tree_children = [mul_div_token, p_tree]
+            return AST("<T_lista>", tree_children)
 
         # should never come here
         else:
@@ -432,31 +425,36 @@ class Parser:
             end_token = self.current_token
             self.advance()
 
-            return AST("<P>", end_token)
+            tree_children = [end_token]
+            return AST("<P>", tree_children)
 
         # OP_PLUS or OP_MINUS reached
         elif self.current_token.identifier == Grammar.OP_PLUS or \
                 self.current_token.identifier == Grammar.OP_MINUS:
-            left_token = self.current_token
+            plus_minus_token = self.current_token
             self.advance()
+
             p_tree = self.factor()
 
-            return AST("<P>", left_token, p_tree)
+            tree_children = [plus_minus_token, p_tree]
+            return AST("<P>", tree_children)
 
         # L_ZAGRADA reached, advance to expression
         elif self.current_token.identifier == Grammar.L_ZAGRADA:
-            left_token = self.current_token
+            l_paren_token = self.current_token
             self.advance()
-            expression_tree = self.expression()
-            # self.advance() # TODO I don't think you should walk after expression
-            right_token = self.current_token
 
-            if right_token is None or \
-                    right_token != Grammar.D_ZAGRADA:
+            expression_tree = self.expression()
+            r_paren_token = self.current_token
+
+            if r_paren_token is None or \
+                    r_paren_token != Grammar.D_ZAGRADA:
                 raise Exception("term: missing right parenthesis")
             else:
                 self.advance()  # move away from right parenthesis
-                return AST("<P>", left_token, expression_tree, right_token)
+
+                tree_children = [l_paren_token, expression_tree, r_paren_token]
+                return AST("<P>", tree_children)
 
         # should never come here
         else:
