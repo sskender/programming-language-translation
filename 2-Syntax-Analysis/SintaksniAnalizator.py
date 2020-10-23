@@ -43,7 +43,10 @@ class Grammar:
     """ Default token identifiers <class Token> """
     IDN = "IDN"
     KR_ZA = "KR_ZA"
+    KR_OD = "KR_OD"
+    KR_DO = "KR_DO"
     KR_AZ = "KR_AZ"
+    OP_PRIDRUZI = "OP_PRIDRUZI"
     OP_PLUS = "OP_PLUS"
     OP_MINUS = "OP_MINUS"
     OP_PUTA = "OP_PUTA"
@@ -109,7 +112,6 @@ class AST:
                     s += f"{' '*margin_size} {child.__repr__()}\n"
                 else:
                     s += f"{child.__repr__(margin_size+1)}"
-
         return s
 
     def __str__(self):
@@ -117,17 +119,23 @@ class AST:
 
 
 class ParserException(Exception):
-    """ Custom parsing exception class """
+    """
+    Custom parser exception class
+
+    Parsing exception as invalid token or invalid end of file:
+        err <identifier> <line_number> <value>
+        err kraj
+    """
 
     def __init__(self, token, message="Invalid token"):
-        self.token = token
+        self.token_string = str(token) if token is not None else "kraj"
         super().__init__(message)
 
     def __repr__(self):
-        return f"err {self.token.__str__()}"
+        return f"err {self.token_string}"
 
     def __str__(self):
-        return f"err {self.token.__str__()}"
+        return f"err {self.token_string}"
 
 
 class Parser:
@@ -136,6 +144,7 @@ class Parser:
     def __init__(self, tokens, debug_flag=False):
         self.tokens = tokens
         self.debug_flag = debug_flag
+        self.total_tokens = 0
         self.current_token_index = -1
         self.current_token = None
         self.ast_root = None
@@ -153,6 +162,7 @@ class Parser:
     def init_parser(self):
         """ Initialize parser to eat the first token """
         if len(self.tokens) >= 1:
+            self.total_tokens = len(self.tokens)
             self.current_token_index = 0
             self.current_token = self.tokens[self.current_token_index]
         else:
@@ -186,10 +196,12 @@ class Parser:
         """
         self.debug("program starting: {}".format(self.current_token))
 
+        # empty program, so return empty tree
         if self.current_token is None:
             tree_children = [None]
             return AST("<program>", tree_children)
 
+        # program start is valid
         elif self.current_token.identifier == Grammar.IDN or \
                 self.current_token.identifier == Grammar.KR_ZA:
             operations_list_tree = self.operations_list()
@@ -197,6 +209,7 @@ class Parser:
             tree_children = [operations_list_tree]
             return AST("<program>", tree_children)
 
+        # invalid program start
         else:
             raise ParserException(self.current_token)
 
@@ -215,7 +228,7 @@ class Parser:
             tree_children = [None]
             return AST("<lista_naredbi>", tree_children)
 
-        # identifer or loop
+        # identifier or loop
         elif self.current_token.identifier == Grammar.IDN or self.current_token.identifier == Grammar.KR_ZA:
             operation_tree = self.operation()
             operations_list_tree = self.operations_list()
@@ -240,18 +253,21 @@ class Parser:
         if self.current_token is None:
             raise ParserException(self.current_token)
 
+        # identifier token
         if self.current_token.identifier == Grammar.IDN:
             compound_tree = self.operation_compound()
 
             tree_children = [compound_tree]
             return AST("<naredba>", tree_children)
 
+        # loop start token
         elif self.current_token.identifier == Grammar.KR_ZA:
             loop_tree = self.operation_loop()
 
             tree_children = [loop_tree]
             return AST("<naredba>", tree_children)
 
+        # invalid token
         else:
             raise ParserException(self.current_token)
 
@@ -266,6 +282,9 @@ class Parser:
 
         left_token = self.current_token
         self.advance()
+
+        if self.current_token is None or self.current_token.identifier != Grammar.OP_PRIDRUZI:
+            raise ParserException(self.current_token)
         operation = self.current_token
         self.advance()
 
@@ -285,19 +304,29 @@ class Parser:
 
         loop_definition_start = self.current_token
         self.advance()
+
+        if self.current_token is None or self.current_token.identifier != Grammar.IDN:
+            raise ParserException(self.current_token)
         identifier = self.current_token
         self.advance()
+
+        if self.current_token is None or self.current_token.identifier != Grammar.KR_OD:
+            raise ParserException(self.current_token)
         loop_start = self.current_token
         self.advance()
 
         expression_start = self.expression()
 
+        if self.current_token is None or self.current_token.identifier != Grammar.KR_DO:
+            raise ParserException(self.current_token)
         loop_finish = self.current_token
         self.advance()
 
         expression_finish = self.expression()
         operations_list = self.operations_list()
 
+        if self.current_token is None or self.current_token.identifier != Grammar.KR_AZ:
+            raise ParserException(self.current_token)
         loop_definition_end = self.current_token
         self.advance()
 
@@ -456,20 +485,21 @@ class Parser:
 
         # L_ZAGRADA reached, advance to expression
         elif self.current_token.identifier == Grammar.L_ZAGRADA:
+            # left parenthesis
             l_paren_token = self.current_token
             self.advance()
 
             expression_tree = self.expression()
-            r_paren_token = self.current_token
 
-            if r_paren_token is None or \
-                    r_paren_token.identifier != Grammar.D_ZAGRADA:
+            # right parenthesis
+            if self.current_token is None or \
+                    self.current_token.identifier != Grammar.D_ZAGRADA:
                 raise ParserException(self.current_token)
-            else:
-                self.advance()  # move away from right parenthesis
+            r_paren_token = self.current_token
+            self.advance()
 
-                tree_children = [l_paren_token, expression_tree, r_paren_token]
-                return AST("<P>", tree_children)
+            tree_children = [l_paren_token, expression_tree, r_paren_token]
+            return AST("<P>", tree_children)
 
         # should never come here
         else:
@@ -487,12 +517,14 @@ def main():
         except Exception:
             break
 
-    parser = Parser(tokens, debug_flag=True)
+    parser = Parser(tokens, debug_flag=False)
 
     try:
         parser.parse()
         parser.print_ast_tree()
     except ParserException as e:
+        print(e)
+    except Exception as e:
         print(e)
 
 
