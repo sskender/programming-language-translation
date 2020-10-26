@@ -229,7 +229,8 @@ class Parser:
             return AST("<lista_naredbi>", tree_children)
 
         # identifier or loop
-        elif self.current_token.identifier == Grammar.IDN or self.current_token.identifier == Grammar.KR_ZA:
+        elif self.current_token.identifier == Grammar.IDN or \
+                self.current_token.identifier == Grammar.KR_ZA:
             operation_tree = self.operation()
             operations_list_tree = self.operations_list()
 

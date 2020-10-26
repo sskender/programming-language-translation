@@ -110,7 +110,8 @@ class Lexer:
                 self.process_token(self.pointer)
                 possible_token = ""
             # this is a char coming after a digit - two tokens
-            elif self.pointer not in DataTypes.DIGITS and possible_token[:1] in DataTypes.DIGITS:
+            elif self.pointer not in DataTypes.DIGITS and \
+                    possible_token[:1] in DataTypes.DIGITS:
                 self.process_token(possible_token)
                 possible_token = self.pointer
             # this is something else, keep digging
