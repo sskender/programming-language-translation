@@ -15,6 +15,9 @@ class SemanticToken:
     def __repr__(self):
         return f"{self.ln_usage} {self.ln_definition} {self.value}"
 
+    def __eq__(self, obj):
+        return isinstance(obj, SemanticToken) and obj.value == self.value
+
 
 class Keywords:
     OPERATION_LOOP = "<za_petlja>"
@@ -56,15 +59,14 @@ class Semantic:
             self.cursor = self.ast_lines[self.cursor_index]
 
     def advance(self):
-        self.debug(
-            "advancing from: {} - {}".format(self.cursor_index, self.cursor))
+        self.debug(f"advancing from: {self.cursor_index} - {self.cursor}")
         if self.cursor_index + 1 < len(self.ast_lines):
             self.cursor_index += 1
             self.cursor = self.ast_lines[self.cursor_index]
         else:
             self.cursor_index = -1
             self.cursor = None
-        self.debug("advanced to: {} - {}".format(self.cursor_index, self.cursor))
+        self.debug(f"advanced to: {self.cursor_index} - {self.cursor}")
 
     def debug(self, msg):
         if self.debug_flag:
@@ -73,22 +75,39 @@ class Semantic:
             pass
 
     def get_tokens(self):
+        """ This is ouput of semantic analysis """
         return self.semantic_tokens
 
     def push_to_stack(self, cursor_line):
         """
         Create token object from current cursor line and
         push it to stack.
+
+        NOTE:
+        If variable is already defined,
+        aka, already pushed to stack - don't rewrite it.
         """
+        self.debug(f"stack before push: {self.context_stack}")
         line_items = cursor_line.strip().split(" ")
         token = SemanticToken(line_items[1], line_items[1], line_items[2])
-        self.context_stack.append(token)
+
+        token_on_stack = False
+        for item in self.context_stack[::-1]:
+            if item == token:
+                token_on_stack = True
+                break
+
+        if not token_on_stack:
+            self.context_stack.append(token)
+        self.debug(f"stack after push: {self.context_stack}")
 
     def remove_from_stack(self):
         """
         Remove the latest token object from stack.
         """
+        self.debug(f"stack before pop: {self.context_stack}")
         self.context_stack.pop()
+        self.debug(f"stack after pop: {self.context_stack}")
 
     def analyse(self):
         pass
