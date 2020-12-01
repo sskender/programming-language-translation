@@ -1,6 +1,26 @@
 import sys
 
 
+class SemanticToken:
+    """ Semantic token data class """
+
+    def __init__(self, ln_usage, ln_definition, value):
+        self.ln_usage = ln_usage
+        self.ln_definition = ln_definition
+        self.value = value
+
+    def __str__(self):
+        return f"{self.ln_usage} {self.ln_definition} {self.value}"
+
+    def __repr__(self):
+        return f"{self.ln_usage} {self.ln_definition} {self.value}"
+
+
+class Keywords:
+    OPERATION_LOOP = "<za_petlja>"
+    OPERATION_ASSIGN = "<naredba_pridruzivanja>"
+
+
 class Semantic:
     """
     Semantic analysis for language 'PJ'.
@@ -20,6 +40,31 @@ class Semantic:
         self.semantic_tokens = list()
         self.ast_str = ast_str
         self.debug_flag = debug_flag
+        self.context_stack = list()
+        self.ast_lines = None
+        self.cursor_index = -1
+        self.cursor = None
+        self.init_analyser()
+
+    def init_analyser(self):
+        self.ast_lines = list()
+        for line in self.ast_str.split("\n"):
+            line = line.strip()
+            self.ast_lines.append(line)
+        if len(self.ast_lines) > 0:
+            self.cursor_index = 0
+            self.cursor = self.ast_lines[self.cursor_index]
+
+    def advance(self):
+        self.debug(
+            "advancing from: {} - {}".format(self.cursor_index, self.cursor))
+        if self.cursor_index + 1 < len(self.ast_lines):
+            self.cursor_index += 1
+            self.cursor = self.ast_lines[self.cursor_index]
+        else:
+            self.cursor_index = -1
+            self.cursor = None
+        self.debug("advanced to: {} - {}".format(self.cursor_index, self.cursor))
 
     def debug(self, msg):
         if self.debug_flag:
@@ -29,6 +74,21 @@ class Semantic:
 
     def get_tokens(self):
         return self.semantic_tokens
+
+    def push_to_stack(self, cursor_line):
+        """
+        Create token object from current cursor line and
+        push it to stack.
+        """
+        line_items = cursor_line.strip().split(" ")
+        token = SemanticToken(line_items[1], line_items[1], line_items[2])
+        self.context_stack.append(token)
+
+    def remove_from_stack(self):
+        """
+        Remove the latest token object from stack.
+        """
+        self.context_stack.pop()
 
     def analyse(self):
         pass
