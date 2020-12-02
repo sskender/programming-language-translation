@@ -147,7 +147,28 @@ class Semantic:
         return None
 
     def analyse(self):
-        pass
+        while self.cursor is not None:
+            if self.cursor == Keywords.OPERATION_ASSIGN:
+                self.operation_compound()
+            elif self.cursor == Keywords.OPERATION_LOOP:
+                self.operation_loop()
+            elif Keywords.IDENTIFIER in self.cursor:
+                self.debug("IDN found: " + self.cursor)
+                self.add_semantic_token(self.cursor)
+                self.advance()
+            else:
+                self.advance()
+
+    def operation_compound(self):
+        self.debug("assign op: " + self.cursor)
+        self.advance()
+        self.debug("var to assign: " + self.cursor)
+        self.push_to_stack(self.cursor)
+        self.advance()
+
+    def operation_loop(self):
+        self.debug("loop: " + self.cursor)
+        self.advance()
 
 
 def main():
