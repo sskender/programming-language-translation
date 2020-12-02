@@ -34,10 +34,6 @@ class SemanticException(Exception):
     """
     Custom semantic exception class.
 
-    Semantic exceptions for:
-        - using undeclared variable
-        - using variable out of scope
-
     err <line_number> <value>
     """
 
@@ -56,7 +52,11 @@ class Semantic:
     """
     Semantic analysis for language 'PJ'.
 
-    Definition of variables is saved on context stack.
+    Definition (declaration) of variables is saved on context stack.
+
+    There are two types of scopes:
+        - global scope
+        - local scope inside loop (KR_ZA <local scope> KR_AZ)
 
     Semantic errors:
         - undeclared variables
@@ -93,14 +93,14 @@ class Semantic:
             self.cursor = self.ast_lines[self.cursor_index]
 
     def advance(self):
-        # self.debug(f"advancing from: {self.cursor_index} - {self.cursor}")
+        self.debug(f"advancing from: {self.cursor_index} - {self.cursor}")
         if self.cursor_index + 1 < len(self.ast_lines):
             self.cursor_index += 1
             self.cursor = self.ast_lines[self.cursor_index]
         else:
             self.cursor_index = -1
             self.cursor = None
-        # self.debug(f"advanced to: {self.cursor_index} - {self.cursor}")
+        self.debug(f"advanced to: {self.cursor_index} - {self.cursor}")
 
     def debug(self, msg):
         if self.debug_flag:
@@ -122,6 +122,8 @@ class Semantic:
             - line in which variable is used
             - line in which variable was defined (read from context stack)
             - name of the variable
+
+        If undeclared variable is being used, raise exception.
         """
         self.debug(f"adding IDN {self.cursor}")
         self.debug(f"tokens before push: {self.semantic_tokens}")
@@ -133,7 +135,6 @@ class Semantic:
             token = SemanticToken(ln_usage, ln_definition, idn_value)
             self.semantic_tokens.append(token)
         else:
-            self.debug("!!! variale not defined " + idn_value)
             token = SemanticToken(ln_usage, ln_usage, idn_value)
             raise SemanticException(token)
         self.advance()
@@ -141,8 +142,8 @@ class Semantic:
 
     def push_to_stack(self):
         """
-        Create token object from current cursor line and
-        push it to stack.
+        Create token object from current cursor line
+        and push it to stack.
         """
         self.debug(f"stack before push: {self.context_stack}")
         line_items = self.cursor.strip().split(" ")
@@ -158,32 +159,6 @@ class Semantic:
         popped = self.context_stack.pop()
         self.debug(f"stack after pop: {self.context_stack}")
         return popped
-
-    def push_idn_to_stack(self):
-        """
-        Save variable (IDN) definition to context stack.
-
-        NOTE:
-        If a variable is already defined in the same scope,
-        aka, token already pushed to stack -
-        don't rewrite it - keep the original.
-
-        There are two types of scopes:
-            - global scope
-            - local scope inside loop (KR_ZA <local scope> KR_AZ)
-        """
-        self.debug(f"stack before push: {self.context_stack}")
-        line_items = self.cursor.strip().split(" ")
-        token = SemanticToken(line_items[1], line_items[1], line_items[2])
-        token_on_stack = False
-        for item in self.context_stack[::-1]:
-            # TODO check scope
-            if item == token:
-                token_on_stack = True
-                break
-        if not token_on_stack:
-            self.context_stack.append(token)
-        self.debug(f"stack after push: {self.context_stack}")
 
     def remove_block_scope_from_stack(self):
         """
@@ -225,13 +200,32 @@ class Semantic:
                 self.advance()
 
     def operation_compound(self):
+        """
+        Save variable (IDN) definition to context stack.
+
+        NOTE:
+        If a variable is already defined in the same scope,
+        (token already pushed to stack) -
+        don't rewrite it - keep the original declaration.
+        """
         self.debug("assign op: " + self.cursor)
         self.advance()
-        self.push_idn_to_stack()
-        # TODO handle scope in here
+        line_items = self.cursor.strip().split(" ")
+        token = SemanticToken(line_items[1], line_items[1], line_items[2])
+        token_on_stack = False
+        for item in self.context_stack[::-1]:
+            if item == token:
+                token_on_stack = True
+                break
+        if not token_on_stack:
+            self.push_to_stack()
         self.advance()
 
     def operation_loop(self):
+        """
+        Save new scope to stack (KR_ZA)
+        and the following scope variable.
+        """
         self.debug("loop op: " + self.cursor)
         self.advance()
         self.push_to_stack()
@@ -247,16 +241,13 @@ def main():
 
     try:
         s.analyse()
+        for token in s.get_tokens():
+            print(token)
     except SemanticException as e:
-        tokens = s.get_tokens()
-        for token in tokens:
+        for token in s.get_tokens():
             print(token)
         print(e)
         exit(1)
-
-    tokens = s.get_tokens()
-    for token in tokens:
-        print(token)
 
 
 if __name__ == "__main__":
