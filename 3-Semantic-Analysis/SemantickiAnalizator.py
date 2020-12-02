@@ -23,6 +23,8 @@ class Keywords:
     OPERATION_LOOP = "<za_petlja>"
     OPERATION_ASSIGN = "<naredba_pridruzivanja>"
 
+    IDENTIFIER = "IDN"
+
 
 class Semantic:
     """
@@ -78,6 +80,30 @@ class Semantic:
         """ This is ouput of semantic analysis """
         return self.semantic_tokens
 
+    def add_semantic_token(self, cursor_line):
+        """
+        Record usage of an existing variable (identifier IDN)
+        in the list of semantic tokens.
+
+        Create semantic token object from current cursor line.
+        Save as semantic token attributes:
+            - line in which variable is used
+            - line in which variable was defined
+            - name of the variable
+        """
+        self.debug(f"tokens before push: {self.semantic_tokens}")
+        line_items = cursor_line.strip().split(" ")
+        usage_line = line_items[1]
+        idn_value = line_items[2]
+        definition_line = self.find_definition_line(idn_value)
+        if definition_line is not None:
+            token = SemanticToken(usage_line, definition_line, idn_value)
+            self.semantic_tokens.append(token)
+        else:
+            # TODO raise exception
+            self.debug("!!! variale not defined" + cursor_line)
+        self.debug(f"tokens after push: {self.semantic_tokens}")
+
     def push_to_stack(self, cursor_line):
         """
         Create token object from current cursor line and
@@ -108,6 +134,17 @@ class Semantic:
         self.debug(f"stack before pop: {self.context_stack}")
         self.context_stack.pop()
         self.debug(f"stack after pop: {self.context_stack}")
+
+    def find_definition_line(self, idn_value):
+        """
+        Check if used variable is defined.
+        (saved on context stack)
+        """
+        self.debug("trying to find on stack: " + str(idn_value))
+        for item in self.context_stack[::-1]:
+            if item.value == idn_value:
+                return item.ln_definition
+        return None
 
     def analyse(self):
         pass
