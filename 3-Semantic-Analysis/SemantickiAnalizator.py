@@ -118,19 +118,36 @@ class Semantic:
 
     def push_to_stack(self):
         """
-        Save variable (IDN) definition to context stack.
-
         Create token object from current cursor line and
         push it to stack.
+        """
+        self.debug(f"stack before push: {self.context_stack}")
+        line_items = self.cursor.strip().split(" ")
+        token = SemanticToken(line_items[1], line_items[1], line_items[2])
+        self.context_stack.append(token)
+        self.debug(f"stack after push: {self.context_stack}")
+
+    def pop_from_stack(self):
+        """
+        Remove the latest added token object from stack.
+        """
+        self.debug(f"stack before pop: {self.context_stack}")
+        popped = self.context_stack.pop()
+        self.debug(f"stack after pop: {self.context_stack}")
+        return popped
+
+    def push_idn_to_stack(self):
+        """
+        Save variable (IDN) definition to context stack.
 
         NOTE:
-        If variable is already defined in the same scope,
+        If a variable is already defined in the same scope,
         aka, token already pushed to stack -
         don't rewrite it - keep the original.
 
-        If variable is already defined, but in different scope,
-        and a new scope with the same variable name is present,
-        add the new variable with new line number.
+        There are two types of scopes:
+            - global scope
+            - local scope inside loop (KR_ZA <local scope> KR_AZ)
         """
         self.debug(f"stack before push: {self.context_stack}")
         line_items = self.cursor.strip().split(" ")
@@ -145,14 +162,6 @@ class Semantic:
             self.context_stack.append(token)
         self.debug(f"stack after push: {self.context_stack}")
 
-    def remove_from_stack(self):
-        """
-        Remove the latest added token object from stack.
-        """
-        self.debug(f"stack before pop: {self.context_stack}")
-        self.context_stack.pop()
-        self.debug(f"stack after pop: {self.context_stack}")
-
     def remove_block_scope_from_stack(self):
         """
         Remove all variables definied in the loop scope.
@@ -162,8 +171,9 @@ class Semantic:
         """
         self.debug(f"loop finished - removing scope {self.cursor}")
         while len(self.context_stack) > 0 and \
-                self.context_stack[-1].value == Keywords.KR_ZA_VALUE:
-            self.remove_from_stack()
+                self.context_stack[-1].value != Keywords.KR_ZA_VALUE:
+            self.pop_from_stack()
+        self.pop_from_stack()
         self.advance()
 
     def find_definition_line_on_stack(self, idn_value):
@@ -194,7 +204,8 @@ class Semantic:
     def operation_compound(self):
         self.debug("assign op: " + self.cursor)
         self.advance()
-        self.push_to_stack()
+        self.push_idn_to_stack()
+        # TODO handle scope in here
         self.advance()
 
     def operation_loop(self):
