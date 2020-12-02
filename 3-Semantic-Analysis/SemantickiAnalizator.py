@@ -124,14 +124,20 @@ class Semantic:
         push it to stack.
 
         NOTE:
-        If variable is already defined,
-        aka, token already pushed to stack - don't rewrite it.
+        If variable is already defined in the same scope,
+        aka, token already pushed to stack -
+        don't rewrite it - keep the original.
+
+        If variable is already defined, but in different scope,
+        and a new scope with the same variable name is present,
+        add the new variable with new line number.
         """
         self.debug(f"stack before push: {self.context_stack}")
         line_items = self.cursor.strip().split(" ")
         token = SemanticToken(line_items[1], line_items[1], line_items[2])
         token_on_stack = False
         for item in self.context_stack[::-1]:
+            # TODO check scope
             if item == token:
                 token_on_stack = True
                 break
