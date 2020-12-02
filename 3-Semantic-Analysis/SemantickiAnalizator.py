@@ -26,6 +26,8 @@ class Keywords:
     IDN = "IDN"
     KR_ZA = "KR_ZA"
     KR_AZ = "KR_AZ"
+    KR_ZA_VALUE = "za"
+    KR_AZ_VALUE = "az"
 
 
 class Semantic:
@@ -145,6 +147,19 @@ class Semantic:
         self.context_stack.pop()
         self.debug(f"stack after pop: {self.context_stack}")
 
+    def remove_block_scope_from_stack(self):
+        """
+        Remove all variables definied in the loop scope.
+
+        Variables in loop scope are all variables saved
+        on stack between KR_ZA and KR_AZ loop keywords.
+        """
+        self.debug(f"loop finished - removing scope {self.cursor}")
+        while len(self.context_stack) > 0 and \
+                self.context_stack[-1].value == Keywords.KR_ZA_VALUE:
+            self.remove_from_stack()
+        self.advance()
+
     def find_definition_line_on_stack(self, idn_value):
         """
         Check if variable being used is defined.
@@ -165,6 +180,8 @@ class Semantic:
                 self.operation_loop()
             elif Keywords.IDN in self.cursor:
                 self.add_semantic_token()
+            elif Keywords.KR_AZ in self.cursor:
+                self.remove_block_scope_from_stack()
             else:
                 self.advance()
 
@@ -175,7 +192,11 @@ class Semantic:
         self.advance()
 
     def operation_loop(self):
-        self.debug("loop: " + self.cursor)
+        self.debug("loop op: " + self.cursor)
+        self.advance()
+        self.push_to_stack()
+        self.advance()
+        self.push_to_stack()
         self.advance()
 
 
