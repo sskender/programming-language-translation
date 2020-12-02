@@ -30,6 +30,28 @@ class Keywords:
     KR_AZ_VALUE = "az"
 
 
+class SemanticException(Exception):
+    """
+    Custom semantic exception class.
+
+    Semantic exceptions for:
+        - using undeclared variable
+        - using variable out of scope
+
+    err <line_number> <value>
+    """
+
+    def __init__(self, token, message="Invalid token"):
+        self.token = token
+        super().__init__(message)
+
+    def __repr__(self):
+        return f"err {self.token.ln_usage} {self.token.value}"
+
+    def __str__(self):
+        return f"err {self.token.ln_usage} {self.token.value}"
+
+
 class Semantic:
     """
     Semantic analysis for language 'PJ'.
@@ -104,15 +126,16 @@ class Semantic:
         self.debug(f"adding IDN {self.cursor}")
         self.debug(f"tokens before push: {self.semantic_tokens}")
         line_items = self.cursor.strip().split(" ")
-        usage_line = line_items[1]
+        ln_usage = line_items[1]
         idn_value = line_items[2]
-        definition_line = self.find_definition_line_on_stack(idn_value)
-        if definition_line is not None:
-            token = SemanticToken(usage_line, definition_line, idn_value)
+        ln_definition = self.find_definition_line_on_stack(idn_value)
+        if ln_definition is not None:
+            token = SemanticToken(ln_usage, ln_definition, idn_value)
             self.semantic_tokens.append(token)
         else:
-            # TODO raise exception
             self.debug("!!! variale not defined " + idn_value)
+            token = SemanticToken(ln_usage, ln_usage, idn_value)
+            raise SemanticException(token)
         self.advance()
         self.debug(f"tokens after push: {self.semantic_tokens}")
 
@@ -220,8 +243,16 @@ class Semantic:
 def main():
     parser_output = sys.stdin.read()
 
-    s = Semantic(parser_output, True)
-    s.analyse()
+    s = Semantic(parser_output, False)
+
+    try:
+        s.analyse()
+    except SemanticException as e:
+        tokens = s.get_tokens()
+        for token in tokens:
+            print(token)
+        print(e)
+        exit(1)
 
     tokens = s.get_tokens()
     for token in tokens:
