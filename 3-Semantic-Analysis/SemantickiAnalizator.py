@@ -23,12 +23,16 @@ class Keywords:
     OPERATION_LOOP = "<za_petlja>"
     OPERATION_ASSIGN = "<naredba_pridruzivanja>"
 
-    IDENTIFIER = "IDN"
+    IDN = "IDN"
+    KR_ZA = "KR_ZA"
+    KR_AZ = "KR_AZ"
 
 
 class Semantic:
     """
     Semantic analysis for language 'PJ'.
+
+    Definition of variables is saved on context stack.
 
     Semantic errors:
         - undeclared variables
@@ -39,6 +43,10 @@ class Semantic:
 
     Output:
         List of semantic tokens
+        One semantic token consists of:
+            - line number of variable usage
+            - line number of variable definition
+            - IDN - variable name
     """
 
     def __init__(self, ast_str=None, debug_flag=False):
@@ -61,14 +69,14 @@ class Semantic:
             self.cursor = self.ast_lines[self.cursor_index]
 
     def advance(self):
-        self.debug(f"advancing from: {self.cursor_index} - {self.cursor}")
+        # self.debug(f"advancing from: {self.cursor_index} - {self.cursor}")
         if self.cursor_index + 1 < len(self.ast_lines):
             self.cursor_index += 1
             self.cursor = self.ast_lines[self.cursor_index]
         else:
             self.cursor_index = -1
             self.cursor = None
-        self.debug(f"advanced to: {self.cursor_index} - {self.cursor}")
+        # self.debug(f"advanced to: {self.cursor_index} - {self.cursor}")
 
     def debug(self, msg):
         if self.debug_flag:
@@ -80,65 +88,68 @@ class Semantic:
         """ This is ouput of semantic analysis """
         return self.semantic_tokens
 
-    def add_semantic_token(self, cursor_line):
+    def add_semantic_token(self):
         """
         Record usage of an existing variable (identifier IDN)
         in the list of semantic tokens.
 
-        Create semantic token object from current cursor line.
+        Create semantic token object from current cursor line string.
         Save as semantic token attributes:
             - line in which variable is used
-            - line in which variable was defined
+            - line in which variable was defined (read from context stack)
             - name of the variable
         """
+        self.debug(f"adding IDN {self.cursor}")
         self.debug(f"tokens before push: {self.semantic_tokens}")
-        line_items = cursor_line.strip().split(" ")
+        line_items = self.cursor.strip().split(" ")
         usage_line = line_items[1]
         idn_value = line_items[2]
-        definition_line = self.find_definition_line(idn_value)
+        definition_line = self.find_definition_line_on_stack(idn_value)
         if definition_line is not None:
             token = SemanticToken(usage_line, definition_line, idn_value)
             self.semantic_tokens.append(token)
         else:
             # TODO raise exception
-            self.debug("!!! variale not defined" + cursor_line)
+            self.debug("!!! variale not defined " + idn_value)
+        self.advance()
         self.debug(f"tokens after push: {self.semantic_tokens}")
 
-    def push_to_stack(self, cursor_line):
+    def push_to_stack(self):
         """
+        Save variable (IDN) definition to context stack.
+
         Create token object from current cursor line and
         push it to stack.
 
         NOTE:
         If variable is already defined,
-        aka, already pushed to stack - don't rewrite it.
+        aka, token already pushed to stack - don't rewrite it.
         """
         self.debug(f"stack before push: {self.context_stack}")
-        line_items = cursor_line.strip().split(" ")
+        line_items = self.cursor.strip().split(" ")
         token = SemanticToken(line_items[1], line_items[1], line_items[2])
-
         token_on_stack = False
         for item in self.context_stack[::-1]:
             if item == token:
                 token_on_stack = True
                 break
-
         if not token_on_stack:
             self.context_stack.append(token)
         self.debug(f"stack after push: {self.context_stack}")
 
     def remove_from_stack(self):
         """
-        Remove the latest token object from stack.
+        Remove the latest added token object from stack.
         """
         self.debug(f"stack before pop: {self.context_stack}")
         self.context_stack.pop()
         self.debug(f"stack after pop: {self.context_stack}")
 
-    def find_definition_line(self, idn_value):
+    def find_definition_line_on_stack(self, idn_value):
         """
-        Check if used variable is defined.
+        Check if variable being used is defined.
         (saved on context stack)
+        Return line of definition required to create SemanticToken object
         """
         self.debug("trying to find on stack: " + str(idn_value))
         for item in self.context_stack[::-1]:
@@ -152,18 +163,15 @@ class Semantic:
                 self.operation_compound()
             elif self.cursor == Keywords.OPERATION_LOOP:
                 self.operation_loop()
-            elif Keywords.IDENTIFIER in self.cursor:
-                self.debug("IDN found: " + self.cursor)
-                self.add_semantic_token(self.cursor)
-                self.advance()
+            elif Keywords.IDN in self.cursor:
+                self.add_semantic_token()
             else:
                 self.advance()
 
     def operation_compound(self):
         self.debug("assign op: " + self.cursor)
         self.advance()
-        self.debug("var to assign: " + self.cursor)
-        self.push_to_stack(self.cursor)
+        self.push_to_stack()
         self.advance()
 
     def operation_loop(self):
