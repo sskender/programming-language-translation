@@ -129,7 +129,7 @@ class Semantic:
         ln_usage = line_items[1]
         idn_value = line_items[2]
         ln_definition = self.find_definition_line_on_stack(idn_value)
-        if ln_definition is not None:
+        if ln_definition is not None and ln_definition != ln_usage:
             token = SemanticToken(ln_usage, ln_definition, idn_value)
             self.semantic_tokens.append(token)
         else:
