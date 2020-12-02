@@ -15,6 +15,6 @@ do
     fi
 done
 
-total=$(ls -l $TEST_FOLDER/ | wc -l)
+total=$(find $TEST_FOLDER/* -type d | wc -l)
 echo -e "\nPassed: $passed \nTotal : $total"
 
